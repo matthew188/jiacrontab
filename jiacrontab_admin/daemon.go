@@ -6,6 +6,7 @@ import (
 	"jiacrontab/pkg/proto"
 	"jiacrontab/pkg/rpc"
 	"strings"
+	"time"
 )
 
 func GetDaemonJobList(ctx *myctx) {
@@ -131,6 +132,7 @@ func EditDaemonJob(ctx *myctx) {
 		CreatedUsername: ctx.claims.Username,
 	}
 	daemonJob.ID = reqBody.JobID
+	daemonJob.StartAt = time.Now()
 	if ctx.claims.Root || ctx.claims.GroupID == models.SuperGroup.ID {
 		daemonJob.Status = models.StatusJobOk
 	} else {
