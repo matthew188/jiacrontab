@@ -7,6 +7,7 @@ import (
 	"jiacrontab/models"
 	"jiacrontab/pkg/proto"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -21,6 +22,13 @@ type ApiNotifyArgs struct {
 	CreateUsername string
 	CreatedAt      time.Time
 	NotifyType     string
+}
+type FeishuMsg struct {
+	ChatId      string `json:"chatId"`
+	Title       string `json:"title"`
+	Content     string `json:"content"`
+	ContentType string `json:"contentType"`
+	NoticeType  string `json:"noticeType"`
 }
 
 type daemonJob struct {
@@ -113,8 +121,8 @@ func (d *daemonJob) syncJob() error {
 	return models.DB().Take(d.job, "id=? and status=?", d.job.ID, models.StatusJobRunning).Error
 }
 
-func (d *daemonJob) handleNotify(err error) {
-	if err == nil {
+func (d *daemonJob) handleNotify(handleErr error) {
+	if handleErr == nil {
 		return
 	}
 
@@ -127,7 +135,7 @@ func (d *daemonJob) handleNotify(err error) {
 			Subject: cfg.BoardcastAddr + "提醒常驻脚本异常退出",
 			Content: fmt.Sprintf(
 				"任务名：%s<br/>创建者：%s<br/>开始时间：%s<br/>异常：%s",
-				d.job.Name, d.job.CreatedUsername, time.Now().Format(proto.DefaultTimeLayout), err),
+				d.job.Name, d.job.CreatedUsername, time.Now().Format(proto.DefaultTimeLayout), handleErr),
 		}, &reply)
 		if err != nil {
 			log.Error("Srv.SendMail error:", err, "server addr:", cfg.AdminAddr)
@@ -135,20 +143,51 @@ func (d *daemonJob) handleNotify(err error) {
 	}
 
 	if d.job.ErrorAPINotify && len(d.job.APITo) > 0 {
-		postData, err := json.Marshal(ApiNotifyArgs{
-			JobName:        d.job.Name,
-			JobID:          d.job.ID,
-			CreateUsername: d.job.CreatedUsername,
-			CreatedAt:      d.job.CreatedAt,
-			NodeAddr:       cfg.BoardcastAddr,
-			NotifyType:     "error",
-		})
-		if err != nil {
-			log.Error("json.Marshal error:", err)
+		//postData, err := json.Marshal(ApiNotifyArgs{
+		//	JobName:        d.job.Name,
+		//	JobID:          d.job.ID,
+		//	CreateUsername: d.job.CreatedUsername,
+		//	CreatedAt:      d.job.CreatedAt,
+		//	NodeAddr:       cfg.BoardcastAddr,
+		//	NotifyType:     "error",
+		//})
+		//if err != nil {
+		//	log.Error("json.Marshal error:", err)
+		//}
+		var postData string
+		if strings.Index(d.job.APITo[0], "lark-callback.shihuo.cn/notice") >= 0 {
+			var apidata FeishuMsg
+			err := json.Unmarshal([]byte(d.job.APIData), &apidata)
+			if err != nil {
+				log.Error("Logic.ApiPost error:", err, "server addr:", cfg.AdminAddr)
+				return
+			}
+			apidata.Content += ` ，任务名：` + d.job.Name +
+				"\n创建者:" + d.job.CreatedUsername +
+				"\n任务ID：" + strconv.Itoa(int(d.job.ID)) +
+				"\n节点地址：" + cfg.BoardcastAddr +
+				"\n开始时间:" + d.job.CreatedAt.String() +
+				"\n错误：" + handleErr.Error()
+			postDataByte, err0 := json.Marshal(apidata)
+			if err0 != nil {
+				log.Error("json.Marshal error:", err)
+			}
+			postData = string(postDataByte)
+		} else if strings.Index(d.job.APITo[0], "oapi.dingtalk.com") >= 0 {
+			postData = `{"msgtype": "text",
+				"text": {"content": "告警：` + d.job.APIData +
+				` ，任务名：` + d.job.Name +
+				"\n创建者:" + d.job.CreatedUsername +
+				"\n任务ID：" + strconv.Itoa(int(d.job.ID)) +
+				"\n节点地址：" + cfg.BoardcastAddr +
+				"\n开始时间:" + d.job.CreatedAt.String() +
+				"\n错误：" + handleErr.Error() + `"}
+			}`
 		}
-		err = d.daemon.jd.rpcCallCtx(d.ctx, "Srv.ApiPost", proto.ApiPost{
+
+		err := d.daemon.jd.rpcCallCtx(d.ctx, "Srv.ApiPost", proto.ApiPost{
 			Urls: d.job.APITo,
-			Data: string(postData),
+			Data: postData,
 		}, &reply)
 
 		if err != nil {

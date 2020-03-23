@@ -117,6 +117,7 @@ func EditDaemonJob(ctx *myctx) {
 		ErrorAPINotify:  reqBody.ErrorAPINotify,
 		MailTo:          reqBody.MailTo,
 		APITo:           reqBody.APITo,
+		APIData:         reqBody.APIData,
 		UpdatedUserID:   ctx.claims.UserID,
 		UpdatedUsername: ctx.claims.Username,
 		Command:         reqBody.Command,

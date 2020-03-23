@@ -217,6 +217,7 @@ type EditDaemonJobReqParams struct {
 	Name            string   `json:"name" rule:"required,请填写name"`
 	MailTo          []string `json:"mailTo"`
 	APITo           []string `json:"APITo"`
+	APIData         string   `json:"APIData"`
 	Command         []string `json:"command"  rule:"required,请填写command"`
 	Code            string   `json:"code"`
 	WorkUser        string   `json:"workUser"`

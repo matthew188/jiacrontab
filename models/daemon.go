@@ -17,6 +17,7 @@ type DaemonJob struct {
 	Status          JobStatus   `json:"status"`
 	MailTo          StringSlice `json:"mailTo" gorm:"type:varchar(1000)"`
 	APITo           StringSlice `json:"APITo" gorm:"type:varchar(1000)"`
+	APIData         string      `json:"APIData" gorm:"type:varchar(5000)"`
 	FailRestart     bool        `json:"failRestart"`
 	RetryNum        int         `json:"retryNum"`
 	StartAt         time.Time   `json:"startAt"`
