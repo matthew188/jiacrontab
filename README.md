@@ -44,7 +44,7 @@ $ nohup ./jiacrontabd &> jiacrontabd.log &
 
 ```sh
 $ cd $GOPATH/src
-$ git clone git@github.com:iwannay/jiacrontab.git
+$ git clone git@github.com:matthew188/jiacrontab.git
 $ cd jiacrontab
 $ make build
 
